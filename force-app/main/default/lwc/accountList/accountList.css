@@ -1,0 +1,42 @@
+.account-list-container {
+    max-height: 500px;
+    overflow-y: auto;
+    border: 1px solid #d8dde6;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.account-card {
+    cursor: move;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.account-card:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.account-card.selected {
+    border-color: #1589ee;
+    box-shadow: 0 0 0 2px rgba(21, 137, 238, 0.1);
+}
+
+.account-card.slds-is-dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.slds-card__header-title {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+}
+
+.slds-text-body_small {
+    margin-bottom: 0.25rem;
+}
+
+.slds-text-body_small:last-child {
+    margin-bottom: 0;
+}

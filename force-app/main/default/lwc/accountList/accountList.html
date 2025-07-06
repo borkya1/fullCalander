@@ -1,0 +1,69 @@
+<template>
+    <lightning-card title="Account List" icon-name="standard:account">
+        <div class="slds-var-p-around_medium">
+            <template lwc:if={hasAccounts}>
+                <div class="account-list-container">
+                    <template for:each={accounts} for:item="account">
+                        <div
+                            key={account.Id}
+                            class="account-card slds-card slds-var-m-bottom_small"
+                            data-account-id={account.Id}
+                            draggable="true"
+                            ondragstart={handleDragStart}
+                            ondragend={handleDragEnd}
+                            onclick={handleCardClick}
+                        >
+                            <div class="slds-card__header">
+                                <h3 class="slds-card__header-title">
+                                    <lightning-icon
+                                        icon-name="standard:account"
+                                        size="small"
+                                        class="slds-var-m-right_x-small"
+                                    ></lightning-icon>
+                                    {account.Name}
+                                </h3>
+                            </div>
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-grid slds-wrap">
+                                    <div class="slds-col slds-size_1-of-1">
+                                        <template lwc:if={account.BillingStreet}>
+                                            <p class="slds-text-body_small">
+                                                <strong>Street:</strong> {account.BillingStreet}
+                                            </p>
+                                        </template>
+                                        <template lwc:if={account.BillingCity}>
+                                            <p class="slds-text-body_small">
+                                                <strong>City:</strong> {account.BillingCity}
+                                            </p>
+                                        </template>
+                                        <template lwc:if={account.BillingState}>
+                                            <p class="slds-text-body_small">
+                                                <strong>State:</strong> {account.BillingState}
+                                            </p>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template lwc:else>
+                <div class="slds-text-align_center slds-var-p-around_medium">
+                    <lightning-icon
+                        icon-name="utility:info"
+                        size="small"
+                        class="slds-var-m-bottom_small"
+                    ></lightning-icon>
+                    <p>No accounts found</p>
+                </div>
+            </template>
+            <template lwc:if={error}>
+                <c-error-panel
+                    errors={error}
+                    friendly-message="Failed to load accounts"
+                ></c-error-panel>
+            </template>
+        </div>
+    </lightning-card>
+</template>
