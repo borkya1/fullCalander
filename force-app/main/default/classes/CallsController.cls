@@ -49,6 +49,41 @@ public with sharing class CallsController {
         }
     }
     
+    @AuraEnabled
+    public static String updateCall(String callId, String startTime, String endTime) {
+        System.debug('⚡ Updating call: ' + callId + ' from ' + startTime + ' to ' + endTime);
+        
+        try {
+            Calls__c callToUpdate = [SELECT Id, Account__c, Subject__c FROM Calls__c WHERE Id = :callId LIMIT 1];
+            callToUpdate.Start_Time__c = DateTime.valueOf(startTime.replace('T', ' '));
+            callToUpdate.End_Time__c = DateTime.valueOf(endTime.replace('T', ' '));
+            
+            update callToUpdate;
+            
+            System.debug('⚡ Call updated successfully');
+            return 'Success';
+        } catch (Exception e) {
+            System.debug('⚡ Error updating call: ' + e.getMessage());
+            throw new AuraHandledException('Error updating call: ' + e.getMessage());
+        }
+    }
+    
+    @AuraEnabled
+    public static String deleteCall(String callId) {
+        System.debug('⚡ Deleting call: ' + callId);
+        
+        try {
+            Calls__c callToDelete = [SELECT Id FROM Calls__c WHERE Id = :callId LIMIT 1];
+            delete callToDelete;
+            
+            System.debug('⚡ Call deleted successfully');
+            return 'Success';
+        } catch (Exception e) {
+            System.debug('⚡ Error deleting call: ' + e.getMessage());
+            throw new AuraHandledException('Error deleting call: ' + e.getMessage());
+        }
+    }
+    
     public class CallWrapper {
         @AuraEnabled public String id;
         @AuraEnabled public String title;

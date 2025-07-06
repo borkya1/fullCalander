@@ -1,8 +1,9 @@
 import { LightningElement, track } from 'lwc';
 import FULL_CALENDAR from '@salesforce/resourceUrl/fullCalendar';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
-import { NavigationMixin } from 'lightning/navigation';
 import createCall from '@salesforce/apex/CallsController.createCall';
+import updateCall from '@salesforce/apex/CallsController.updateCall';
+import deleteCall from '@salesforce/apex/CallsController.deleteCall';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 /**
  * When using this component in an LWR site, please import the below custom implementation of 'loadScript' module
@@ -15,13 +16,15 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
  * https://developer.salesforce.com/docs/atlas.en-us.exp_cloud_lwr.meta/exp_cloud_lwr/template_limitations.htm
  */
 
-export default class LibsFullCalendar extends NavigationMixin(LightningElement) {
+export default class LibsFullCalendar extends LightningElement {
     isCalInitialized = false;
     error;
     calendar;
     @track events = [];
     draggedAccount = null;
     currentHighlightedSlot = null;
+    @track showEditModal = false;
+    @track editingCall = {};
 
     async renderedCallback() {
         if (this.isCalInitialized) {
@@ -433,21 +436,138 @@ export default class LibsFullCalendar extends NavigationMixin(LightningElement) 
         }
     }
 
-    // Event click handler to navigate to Call record
+    // Event click handler to open edit modal
     handleEventClick(info) {
         const event = info.event;
         const callId = event.id;
         
         if (callId) {
-            // Navigate to the Call record page
-            this[NavigationMixin.Navigate]({
-                type: 'standard__recordPage',
-                attributes: {
-                    recordId: callId,
-                    objectApiName: 'Calls__c',
-                    actionName: 'view'
-                }
+            // Format the dates and times for the form inputs
+            const startDate = new Date(event.start);
+            const endDate = new Date(event.end);
+            
+            this.editingCall = {
+                id: callId,
+                accountName: event.title,
+                accountId: event.extendedProps.accountId || '',
+                date: this.formatDateForInput(startDate),
+                startTime: this.formatTimeForInput(startDate),
+                endTime: this.formatTimeForInput(endDate),
+                originalStart: event.start,
+                originalEnd: event.end
+            };
+            
+            this.showEditModal = true;
+        }
+    }
+
+    formatDateForInput(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    formatTimeForInput(date) {
+        return date.toTimeString().split(' ')[0].substring(0, 5);
+    }
+
+    closeModal() {
+        this.showEditModal = false;
+        this.editingCall = {};
+    }
+
+    handleDateChange(event) {
+        this.editingCall = { ...this.editingCall, date: event.target.value };
+    }
+
+    handleStartTimeChange(event) {
+        this.editingCall = { ...this.editingCall, startTime: event.target.value };
+    }
+
+    handleEndTimeChange(event) {
+        this.editingCall = { ...this.editingCall, endTime: event.target.value };
+    }
+
+    async saveCall() {
+        try {
+            // Combine date and time for start and end
+            const startDateTime = `${this.editingCall.date}T${this.editingCall.startTime}:00`;
+            const endDateTime = `${this.editingCall.date}T${this.editingCall.endTime}:00`;
+            
+            await updateCall({
+                callId: this.editingCall.id,
+                startTime: startDateTime,
+                endTime: endDateTime
             });
+            
+            // Update the calendar event
+            const calendarEvent = this.calendar.getEventById(this.editingCall.id);
+            if (calendarEvent) {
+                calendarEvent.setStart(startDateTime);
+                calendarEvent.setEnd(endDateTime);
+            }
+            
+            // Update our events array
+            const eventIndex = this.events.findIndex(e => e.id === this.editingCall.id);
+            if (eventIndex !== -1) {
+                this.events[eventIndex].start = startDateTime;
+                this.events[eventIndex].end = endDateTime;
+            }
+            
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Success',
+                    message: 'Call updated successfully',
+                    variant: 'success'
+                })
+            );
+            
+            this.closeModal();
+            
+        } catch (error) {
+            console.error('Error updating call:', error);
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: 'Failed to update call: ' + (error.body?.message || error.message),
+                    variant: 'error'
+                })
+            );
+        }
+    }
+
+    async deleteCall() {
+        try {
+            await deleteCall({
+                callId: this.editingCall.id
+            });
+            
+            // Remove from calendar
+            const calendarEvent = this.calendar.getEventById(this.editingCall.id);
+            if (calendarEvent) {
+                calendarEvent.remove();
+            }
+            
+            // Remove from our events array
+            this.events = this.events.filter(e => e.id !== this.editingCall.id);
+            
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Success',
+                    message: 'Call deleted successfully',
+                    variant: 'success'
+                })
+            );
+            
+            this.closeModal();
+            
+        } catch (error) {
+            console.error('Error deleting call:', error);
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: 'Failed to delete call: ' + (error.body?.message || error.message),
+                    variant: 'error'
+                })
+            );
         }
     }
 

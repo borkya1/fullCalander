@@ -4,4 +4,76 @@
             <div class="calendar" lwc:dom="manual"></div>
         </div>
     </lightning-card>
+
+    <!-- Call Edit Modal -->
+    <template lwc:if={showEditModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
+                            onclick={closeModal} title="Close">
+                        <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-modal__title slds-hyphenate">Edit Call</h2>
+                </header>
+                <div class="slds-modal__content slds-var-p-around_medium">
+                    <div class="slds-form slds-form_stacked">
+                        <div class="slds-form-element">
+                            <label class="slds-form-element__label" for="account-name">Account</label>
+                            <div class="slds-form-element__control">
+                                <input type="text" id="account-name" class="slds-input" 
+                                       value={editingCall.accountName} readonly />
+                            </div>
+                        </div>
+                        <div class="slds-form-element">
+                            <label class="slds-form-element__label" for="call-date">Date</label>
+                            <div class="slds-form-element__control">
+                                <lightning-input 
+                                    type="date" 
+                                    name="callDate"
+                                    value={editingCall.date}
+                                    onchange={handleDateChange}>
+                                </lightning-input>
+                            </div>
+                        </div>
+                        <div class="slds-grid slds-gutters">
+                            <div class="slds-col slds-size_1-of-2">
+                                <div class="slds-form-element">
+                                    <label class="slds-form-element__label" for="start-time">Start Time</label>
+                                    <div class="slds-form-element__control">
+                                        <lightning-input 
+                                            type="time" 
+                                            name="startTime"
+                                            value={editingCall.startTime}
+                                            onchange={handleStartTimeChange}>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="slds-col slds-size_1-of-2">
+                                <div class="slds-form-element">
+                                    <label class="slds-form-element__label" for="end-time">End Time</label>
+                                    <div class="slds-form-element__control">
+                                        <lightning-input 
+                                            type="time" 
+                                            name="endTime"
+                                            value={editingCall.endTime}
+                                            onchange={handleEndTimeChange}>
+                                        </lightning-input>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <footer class="slds-modal__footer">
+                    <button class="slds-button slds-button_neutral" onclick={closeModal}>Cancel</button>
+                    <button class="slds-button slds-button_brand" onclick={saveCall}>Save</button>
+                    <button class="slds-button slds-button_destructive" onclick={deleteCall}>Delete</button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>

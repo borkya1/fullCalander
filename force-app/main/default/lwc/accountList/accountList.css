@@ -51,14 +51,18 @@
 }
 
 .account-card.slds-is-dragging {
-    opacity: 0.8;
-    transform: rotate(2deg) scale(0.6);
+    opacity: 0.9;
+    transform: rotate(1deg) scale(1);
     cursor: grabbing;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     z-index: 1000;
-    width: 200px !important;
-    height: 80px !important;
+    /* Match exact 30-minute slot dimensions */
+    width: calc((100vw - 70px) / 7) !important; /* Calendar width minus time axis divided by 7 days */
+    height: 60px !important; /* Exact slot height */
     overflow: hidden;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #1589ee, #0d5fab);
+    border: 2px solid #0d5fab;
 }
 
 .account-card.slds-is-dragging .slds-card__body {
@@ -66,13 +70,31 @@
 }
 
 .account-card.slds-is-dragging .slds-card__header {
-    padding: 0.5rem;
+    padding: 0.25rem;
     text-align: center;
+    background: transparent;
+    border: none;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .account-card.slds-is-dragging .slds-card__header-title {
-    font-size: 0.9rem;
-    line-height: 1.2;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    color: white;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    margin: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.account-card.slds-is-dragging .slds-card__header-title lightning-icon {
+    display: none;
 }
 
 .slds-card__header-title {
