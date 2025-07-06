@@ -59,6 +59,8 @@ export default class LibsFullCalendar extends NavigationMixin(LightningElement) 
             slotMinTime: '08:00:00',
             slotMaxTime: '18:00:00',
             slotDuration: '00:30:00',
+            slotLabelInterval: '01:00:00',
+            slotHeight: 60,
             allDaySlot: false,
             weekends: true,
             editable: false,
@@ -147,63 +149,124 @@ export default class LibsFullCalendar extends NavigationMixin(LightningElement) 
     }
 
     findTimeSlotFromEvent(event) {
-        // Get the time grid element for more accurate positioning
-        const timeGridElement = this.template.querySelector('.fc-timegrid-body');
-        if (!timeGridElement) return null;
+        // Try multiple elements to find the correct calendar grid
+        let timeGridElement = this.template.querySelector('.fc-timegrid-body');
+        if (!timeGridElement) {
+            timeGridElement = this.template.querySelector('.fc-scrollgrid-sync-table');
+        }
+        if (!timeGridElement) {
+            timeGridElement = this.template.querySelector('.fc-timegrid');
+        }
+        if (!timeGridElement) {
+            // Fallback to the main calendar element
+            timeGridElement = this.template.querySelector('.calendar');
+        }
+        
+        if (!timeGridElement) {
+            console.warn('Could not find calendar grid element');
+            return null;
+        }
         
         const rect = timeGridElement.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
-        // More accurate calculations based on FullCalendar's actual structure
-        const timeSlotHeight = 48; // Height of 30-minute slot in FullCalendar
-        const dayWidth = rect.width / 7; // Width of each day column
+        // Debug logging
+        console.log('Mouse coordinates:', { x, y, clientX: event.clientX, clientY: event.clientY });
+        console.log('Grid element rect:', rect);
         
-        const dayIndex = Math.floor(x / dayWidth);
+        // Updated calculations for larger slots (60px height)
+        const timeSlotHeight = 60; // Updated to match new slot height
+        const timeAxisWidth = 70; // Width of the time axis on the left
+        const availableWidth = rect.width - timeAxisWidth;
+        const dayWidth = availableWidth / 7; // Width of each day column
+        
+        // Adjust x coordinate to account for time axis
+        const adjustedX = x - timeAxisWidth;
+        
+        const dayIndex = Math.floor(adjustedX / dayWidth);
         const slotIndex = Math.floor(y / timeSlotHeight);
         
-        if (dayIndex >= 0 && dayIndex < 7 && slotIndex >= 0) {
+        console.log('Calculated indices:', { dayIndex, slotIndex, adjustedX, dayWidth, timeSlotHeight });
+        
+        // Validate the coordinates are within bounds
+        if (dayIndex >= 0 && dayIndex < 7 && slotIndex >= 0 && slotIndex < 20) { // 20 slots (8AM-6PM, 30min each)
             const startHour = 8; // Based on slotMinTime
             const slotTime = startHour + (slotIndex * 0.5); // 30-minute slots
             
-            // Get the current calendar view's date range
-            const currentView = this.calendar.view;
-            const startOfWeek = currentView.activeStart;
-            
-            const targetDate = new Date(startOfWeek);
-            targetDate.setDate(targetDate.getDate() + dayIndex);
-            
-            const startTime = new Date(targetDate);
-            startTime.setHours(Math.floor(slotTime), (slotTime % 1) * 60, 0, 0);
-            
-            const endTime = new Date(startTime);
-            endTime.setMinutes(endTime.getMinutes() + 30);
-            
-            return {
-                start: startTime,
-                end: endTime,
-                dayIndex: dayIndex,
-                slotIndex: slotIndex,
-                slotElement: this.findSlotElement(dayIndex, slotIndex)
-            };
+            // Validate time is within business hours
+            if (slotTime >= 8 && slotTime < 18) {
+                // Get the current calendar view's date range
+                const currentView = this.calendar.view;
+                const startOfWeek = currentView.activeStart;
+                
+                const targetDate = new Date(startOfWeek);
+                targetDate.setDate(targetDate.getDate() + dayIndex);
+                
+                const startTime = new Date(targetDate);
+                startTime.setHours(Math.floor(slotTime), (slotTime % 1) * 60, 0, 0);
+                
+                const endTime = new Date(startTime);
+                endTime.setMinutes(endTime.getMinutes() + 30);
+                
+                console.log('Valid time slot found:', { startTime, endTime, dayIndex, slotIndex });
+                
+                return {
+                    start: startTime,
+                    end: endTime,
+                    dayIndex: dayIndex,
+                    slotIndex: slotIndex,
+                    slotElement: this.findSlotElement(dayIndex, slotIndex)
+                };
+            }
         }
         
+        console.log('No valid time slot found for coordinates');
         return null;
     }
 
     findSlotElement(dayIndex, slotIndex) {
-        // Find the actual DOM element for the time slot
-        const slotSelector = `.fc-timegrid-slot[data-time="${this.formatSlotTime(8 + (slotIndex * 0.5))}"]`;
-        const dayColumn = this.template.querySelector(`.fc-day[data-date]:nth-child(${dayIndex + 1})`);
+        // Multiple strategies to find the time slot element
         
-        if (dayColumn) {
-            return dayColumn.querySelector(slotSelector);
+        // Strategy 1: Find by time and day
+        const timeStr = this.formatSlotTime(8 + (slotIndex * 0.5));
+        let slotElement = this.template.querySelector(`.fc-timegrid-slot[data-time="${timeStr}"]`);
+        
+        if (slotElement) {
+            console.log('Found slot by time selector:', timeStr);
+            return slotElement;
         }
         
-        // Fallback: find by position
+        // Strategy 2: Find by row and column structure
+        const timeGridRows = this.template.querySelectorAll('.fc-timegrid-slot-lane');
+        if (timeGridRows[slotIndex]) {
+            const dayCells = timeGridRows[slotIndex].querySelectorAll('.fc-timegrid-col');
+            if (dayCells[dayIndex + 1]) { // +1 to account for time axis column
+                console.log('Found slot by row/column structure');
+                return dayCells[dayIndex + 1];
+            }
+        }
+        
+        // Strategy 3: Find all slots and calculate position
         const allSlots = this.template.querySelectorAll('.fc-timegrid-slot');
-        const targetSlotIndex = (dayIndex * 20) + slotIndex; // 20 slots per day (8AM-6PM, 30min each)
-        return allSlots[targetSlotIndex] || null;
+        if (allSlots.length > 0) {
+            // Each time slot row has 8 elements (1 time label + 7 days)
+            const targetSlotIndex = (slotIndex * 8) + (dayIndex + 1);
+            if (allSlots[targetSlotIndex]) {
+                console.log('Found slot by calculated index:', targetSlotIndex);
+                return allSlots[targetSlotIndex];
+            }
+        }
+        
+        // Strategy 4: Generic fallback - highlight any slot in the general area
+        const timeSlots = this.template.querySelectorAll('.fc-timegrid-slot');
+        if (timeSlots.length > 0 && slotIndex < timeSlots.length) {
+            console.log('Using fallback slot highlighting');
+            return timeSlots[Math.min(slotIndex, timeSlots.length - 1)];
+        }
+        
+        console.warn('Could not find slot element for:', { dayIndex, slotIndex });
+        return null;
     }
 
     formatSlotTime(hours) {
@@ -216,20 +279,79 @@ export default class LibsFullCalendar extends NavigationMixin(LightningElement) 
         // Clear previous highlight
         this.clearTimeSlotHighlight();
         
-        if (timeSlot && timeSlot.slotElement) {
+        if (!timeSlot) return;
+        
+        console.log('Attempting to highlight time slot:', timeSlot);
+        
+        // Try to highlight the specific slot element
+        if (timeSlot.slotElement) {
             timeSlot.slotElement.classList.add('slot-highlight');
             this.currentHighlightedSlot = timeSlot.slotElement;
-        } else {
-            // Fallback: find and highlight the slot using a more generic approach
-            const allSlots = this.template.querySelectorAll('.fc-timegrid-slot');
-            const dayColumns = this.template.querySelectorAll('.fc-day');
+            console.log('Highlighted specific slot element');
+            return;
+        }
+        
+        // Fallback 1: Add a visual indicator to the calendar container with positioning
+        const calendarEl = this.template.querySelector('.calendar');
+        if (calendarEl) {
+            // Remove any existing highlight overlays
+            const existingOverlay = calendarEl.querySelector('.slot-highlight-overlay');
+            if (existingOverlay) {
+                existingOverlay.remove();
+            }
             
-            if (dayColumns[timeSlot.dayIndex]) {
-                const daySlots = dayColumns[timeSlot.dayIndex].querySelectorAll('.fc-timegrid-slot');
-                if (daySlots[timeSlot.slotIndex]) {
-                    daySlots[timeSlot.slotIndex].classList.add('slot-highlight');
-                    this.currentHighlightedSlot = daySlots[timeSlot.slotIndex];
-                }
+            // Create a highlight overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'slot-highlight-overlay';
+            overlay.style.cssText = `
+                position: absolute;
+                background-color: rgba(21, 137, 238, 0.3);
+                border: 3px solid #1589ee;
+                pointer-events: none;
+                z-index: 100;
+                border-radius: 6px;
+                box-shadow: 0 0 12px rgba(21, 137, 238, 0.6);
+            `;
+            
+            // Try to position it based on the calendar structure
+            const timeGridElement = this.template.querySelector('.fc-timegrid-body') || 
+                                  this.template.querySelector('.fc-scrollgrid-sync-table') ||
+                                  calendarEl;
+            
+            if (timeGridElement) {
+                const rect = timeGridElement.getBoundingClientRect();
+                const calendarRect = calendarEl.getBoundingClientRect();
+                
+                const timeAxisWidth = 70;
+                const availableWidth = rect.width - timeAxisWidth;
+                const dayWidth = availableWidth / 7;
+                const slotHeight = 60;
+                
+                const left = timeAxisWidth + (timeSlot.dayIndex * dayWidth);
+                const top = timeSlot.slotIndex * slotHeight;
+                
+                overlay.style.left = left + 'px';
+                overlay.style.top = top + 'px';
+                overlay.style.width = dayWidth + 'px';
+                overlay.style.height = slotHeight + 'px';
+                
+                timeGridElement.style.position = 'relative';
+                timeGridElement.appendChild(overlay);
+                
+                this.currentHighlightedSlot = overlay;
+                console.log('Created highlight overlay at position:', { left, top, dayWidth, slotHeight });
+                return;
+            }
+        }
+        
+        // Fallback 2: Highlight any available slot as a visual indicator
+        const allSlots = this.template.querySelectorAll('.fc-timegrid-slot');
+        if (allSlots.length > 0) {
+            const fallbackSlot = allSlots[Math.min(timeSlot.slotIndex || 0, allSlots.length - 1)];
+            if (fallbackSlot) {
+                fallbackSlot.classList.add('slot-highlight');
+                this.currentHighlightedSlot = fallbackSlot;
+                console.log('Used fallback slot highlighting');
             }
         }
     }
@@ -237,9 +359,21 @@ export default class LibsFullCalendar extends NavigationMixin(LightningElement) 
     clearTimeSlotHighlight() {
         // Remove highlighting from previously highlighted slot
         if (this.currentHighlightedSlot) {
-            this.currentHighlightedSlot.classList.remove('slot-highlight');
+            if (this.currentHighlightedSlot.classList) {
+                this.currentHighlightedSlot.classList.remove('slot-highlight');
+            }
+            
+            // If it's an overlay element, remove it
+            if (this.currentHighlightedSlot.className === 'slot-highlight-overlay') {
+                this.currentHighlightedSlot.remove();
+            }
+            
             this.currentHighlightedSlot = null;
         }
+        
+        // Remove any existing highlight overlays
+        const overlays = this.template.querySelectorAll('.slot-highlight-overlay');
+        overlays.forEach(overlay => overlay.remove());
         
         // Also remove from any slots that might have the class
         const highlightedSlots = this.template.querySelectorAll('.slot-highlight');
