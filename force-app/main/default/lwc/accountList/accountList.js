@@ -31,8 +31,17 @@ export default class AccountList extends NavigationMixin(LightningElement) {
 
     handleDragStart(event) {
         const accountId = event.target.dataset.accountId;
+        const account = this.accounts.find(acc => acc.Id === accountId);
+        
         this.selectedAccountId = accountId;
-        event.dataTransfer.setData('text/plain', accountId);
+        
+        // Pass account information as JSON
+        const accountData = {
+            id: account.Id,
+            name: account.Name
+        };
+        
+        event.dataTransfer.setData('text/plain', JSON.stringify(accountData));
         event.dataTransfer.effectAllowed = 'move';
         event.target.classList.add('slds-is-dragging');
     }

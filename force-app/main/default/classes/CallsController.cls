@@ -28,6 +28,27 @@ public with sharing class CallsController {
         return results;
     }
     
+    @AuraEnabled
+    public static String createCall(String accountId, String accountName, String startTime, String endTime) {
+        System.debug('⚡ Creating call for Account: ' + accountId + ' from ' + startTime + ' to ' + endTime);
+        
+        try {
+            Calls__c newCall = new Calls__c();
+            newCall.Account__c = accountId;
+            newCall.Subject__c = 'Call with ' + accountName;
+            newCall.Start_Time__c = DateTime.valueOf(startTime.replace('T', ' '));
+            newCall.End_Time__c = DateTime.valueOf(endTime.replace('T', ' '));
+            
+            insert newCall;
+            
+            System.debug('⚡ Call created successfully with Id: ' + newCall.Id);
+            return newCall.Id;
+        } catch (Exception e) {
+            System.debug('⚡ Error creating call: ' + e.getMessage());
+            throw new AuraHandledException('Error creating call: ' + e.getMessage());
+        }
+    }
+    
     public class CallWrapper {
         @AuraEnabled public String id;
         @AuraEnabled public String title;
