@@ -42,7 +42,39 @@ export default class LibsFullCalendar extends LightningElement {
         }
         // eslint-disable-next-line no-undef
         const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth'
+            initialView: 'timeGridWeek',
+            headerToolbar: {
+                start: 'title',
+                center: '',
+                end: 'today prev,next'
+            },
+            height: 'auto',
+            slotMinTime: '08:00:00',
+            slotMaxTime: '18:00:00',
+            allDaySlot: false,
+            weekends: true,
+            editable: false,
+            eventDisplay: 'block',
+            events: [
+                {
+                    title: 'Team Meeting',
+                    start: new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T10:00:00',
+                    end: new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T11:00:00',
+                    color: '#3788d8'
+                },
+                {
+                    title: 'Client Call',
+                    start: new Date(new Date().getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T14:00:00',
+                    end: new Date(new Date().getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T15:00:00',
+                    color: '#e74c3c'
+                },
+                {
+                    title: 'Project Review',
+                    start: new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T16:00:00',
+                    end: new Date(new Date().getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] + 'T17:00:00',
+                    color: '#2ecc71'
+                }
+            ]
         });
         calendar.render();
     }
