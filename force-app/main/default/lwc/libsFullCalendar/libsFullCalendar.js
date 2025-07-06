@@ -1,6 +1,7 @@
 import { LightningElement, track } from 'lwc';
 import FULL_CALENDAR from '@salesforce/resourceUrl/fullCalendar';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
+import { NavigationMixin } from 'lightning/navigation';
 import createCall from '@salesforce/apex/CallsController.createCall';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 /**
@@ -14,12 +15,13 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
  * https://developer.salesforce.com/docs/atlas.en-us.exp_cloud_lwr.meta/exp_cloud_lwr/template_limitations.htm
  */
 
-export default class LibsFullCalendar extends LightningElement {
+export default class LibsFullCalendar extends NavigationMixin(LightningElement) {
     isCalInitialized = false;
     error;
     calendar;
     @track events = [];
     draggedAccount = null;
+    currentHighlightedSlot = null;
 
     async renderedCallback() {
         if (this.isCalInitialized) {
@@ -65,6 +67,7 @@ export default class LibsFullCalendar extends LightningElement {
             droppable: true,
             drop: this.handleDrop.bind(this),
             eventReceive: this.handleEventReceive.bind(this),
+            eventClick: this.handleEventClick.bind(this),
             dayHeaderDidMount: this.setupDropZones.bind(this)
         });
         this.calendar.render();
@@ -144,28 +147,29 @@ export default class LibsFullCalendar extends LightningElement {
     }
 
     findTimeSlotFromEvent(event) {
-        // This is a simplified version - in reality, you'd need to map mouse coordinates
-        // to FullCalendar's time slots. For now, we'll use a basic approach.
-        const rect = event.currentTarget.getBoundingClientRect();
+        // Get the time grid element for more accurate positioning
+        const timeGridElement = this.template.querySelector('.fc-timegrid-body');
+        if (!timeGridElement) return null;
+        
+        const rect = timeGridElement.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
-        // Calculate approximate time based on position
-        // This is a basic implementation - you might need to adjust based on FullCalendar's layout
-        const timeSlotHeight = 48; // Approximate height of 30-minute slot
-        const headerHeight = 60; // Approximate header height
-        const dayWidth = rect.width / 7;
+        // More accurate calculations based on FullCalendar's actual structure
+        const timeSlotHeight = 48; // Height of 30-minute slot in FullCalendar
+        const dayWidth = rect.width / 7; // Width of each day column
         
         const dayIndex = Math.floor(x / dayWidth);
-        const slotIndex = Math.floor((y - headerHeight) / timeSlotHeight);
+        const slotIndex = Math.floor(y / timeSlotHeight);
         
         if (dayIndex >= 0 && dayIndex < 7 && slotIndex >= 0) {
             const startHour = 8; // Based on slotMinTime
             const slotTime = startHour + (slotIndex * 0.5); // 30-minute slots
             
-            // Get the date for the day
-            const currentDate = new Date();
-            const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay()));
+            // Get the current calendar view's date range
+            const currentView = this.calendar.view;
+            const startOfWeek = currentView.activeStart;
+            
             const targetDate = new Date(startOfWeek);
             targetDate.setDate(targetDate.getDate() + dayIndex);
             
@@ -179,22 +183,69 @@ export default class LibsFullCalendar extends LightningElement {
                 start: startTime,
                 end: endTime,
                 dayIndex: dayIndex,
-                slotIndex: slotIndex
+                slotIndex: slotIndex,
+                slotElement: this.findSlotElement(dayIndex, slotIndex)
             };
         }
         
         return null;
     }
 
+    findSlotElement(dayIndex, slotIndex) {
+        // Find the actual DOM element for the time slot
+        const slotSelector = `.fc-timegrid-slot[data-time="${this.formatSlotTime(8 + (slotIndex * 0.5))}"]`;
+        const dayColumn = this.template.querySelector(`.fc-day[data-date]:nth-child(${dayIndex + 1})`);
+        
+        if (dayColumn) {
+            return dayColumn.querySelector(slotSelector);
+        }
+        
+        // Fallback: find by position
+        const allSlots = this.template.querySelectorAll('.fc-timegrid-slot');
+        const targetSlotIndex = (dayIndex * 20) + slotIndex; // 20 slots per day (8AM-6PM, 30min each)
+        return allSlots[targetSlotIndex] || null;
+    }
+
+    formatSlotTime(hours) {
+        const hour = Math.floor(hours);
+        const minutes = (hours % 1) * 60;
+        return `${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    }
+
     highlightTimeSlot(timeSlot) {
-        // Add visual highlighting to the time slot
-        // This would need to be implemented based on FullCalendar's DOM structure
-        console.log('Highlighting time slot:', timeSlot);
+        // Clear previous highlight
+        this.clearTimeSlotHighlight();
+        
+        if (timeSlot && timeSlot.slotElement) {
+            timeSlot.slotElement.classList.add('slot-highlight');
+            this.currentHighlightedSlot = timeSlot.slotElement;
+        } else {
+            // Fallback: find and highlight the slot using a more generic approach
+            const allSlots = this.template.querySelectorAll('.fc-timegrid-slot');
+            const dayColumns = this.template.querySelectorAll('.fc-day');
+            
+            if (dayColumns[timeSlot.dayIndex]) {
+                const daySlots = dayColumns[timeSlot.dayIndex].querySelectorAll('.fc-timegrid-slot');
+                if (daySlots[timeSlot.slotIndex]) {
+                    daySlots[timeSlot.slotIndex].classList.add('slot-highlight');
+                    this.currentHighlightedSlot = daySlots[timeSlot.slotIndex];
+                }
+            }
+        }
     }
 
     clearTimeSlotHighlight() {
-        // Remove time slot highlighting
-        console.log('Clearing time slot highlight');
+        // Remove highlighting from previously highlighted slot
+        if (this.currentHighlightedSlot) {
+            this.currentHighlightedSlot.classList.remove('slot-highlight');
+            this.currentHighlightedSlot = null;
+        }
+        
+        // Also remove from any slots that might have the class
+        const highlightedSlots = this.template.querySelectorAll('.slot-highlight');
+        highlightedSlots.forEach(slot => {
+            slot.classList.remove('slot-highlight');
+        });
     }
 
     async createCallForTimeSlot(accountInfo, timeSlot) {
@@ -212,11 +263,16 @@ export default class LibsFullCalendar extends LightningElement {
             // Add the event to the calendar
             const newEvent = {
                 id: callId,
-                title: `Call with ${accountInfo.name}`,
+                title: accountInfo.name, // Show only account name
                 start: timeSlot.start.toISOString(),
                 end: timeSlot.end.toISOString(),
                 backgroundColor: '#1589ee',
-                borderColor: '#1589ee'
+                borderColor: '#1589ee',
+                extendedProps: {
+                    accountId: accountInfo.id,
+                    accountName: accountInfo.name,
+                    callId: callId
+                }
             };
             
             this.events.push(newEvent);
@@ -240,6 +296,24 @@ export default class LibsFullCalendar extends LightningElement {
                     variant: 'error'
                 })
             );
+        }
+    }
+
+    // Event click handler to navigate to Call record
+    handleEventClick(info) {
+        const event = info.event;
+        const callId = event.id;
+        
+        if (callId) {
+            // Navigate to the Call record page
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: callId,
+                    objectApiName: 'Calls__c',
+                    actionName: 'view'
+                }
+            });
         }
     }
 
