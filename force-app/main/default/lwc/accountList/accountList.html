@@ -20,7 +20,14 @@
                                         size="small"
                                         class="slds-var-m-right_x-small"
                                     ></lightning-icon>
-                                    {account.Name}
+                                    <a 
+                                        href="#" 
+                                        class="account-name-link"
+                                        data-account-id={account.Id}
+                                        onclick={handleAccountNameClick}
+                                    >
+                                        {account.Name}
+                                    </a>
                                 </h3>
                             </div>
                             <div class="slds-card__body slds-card__body_inner">

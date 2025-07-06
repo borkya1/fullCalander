@@ -1,8 +1,9 @@
 import { LightningElement, wire } from 'lwc';
 import { getListUi } from 'lightning/uiListApi';
+import { NavigationMixin } from 'lightning/navigation';
 import ACCOUNT_OBJECT from '@salesforce/schema/Account';
 
-export default class AccountList extends LightningElement {
+export default class AccountList extends NavigationMixin(LightningElement) {
     accounts = [];
     error;
     selectedAccountId;
@@ -38,6 +39,23 @@ export default class AccountList extends LightningElement {
 
     handleDragEnd(event) {
         event.target.classList.remove('slds-is-dragging');
+    }
+
+    handleAccountNameClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const accountId = event.target.dataset.accountId;
+        
+        // Navigate to account record page
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: accountId,
+                objectApiName: 'Account',
+                actionName: 'view'
+            }
+        });
     }
 
     handleCardClick(event) {

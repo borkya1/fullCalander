@@ -2,29 +2,60 @@
     max-height: 500px;
     overflow-y: auto;
     border: 1px solid #d8dde6;
-    border-radius: 4px;
-    padding: 0.5rem;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #f8f9fa;
 }
 
 .account-card {
-    cursor: move;
-    transition: all 0.2s ease;
-    border: 2px solid transparent;
+    cursor: grab;
+    transition: all 0.3s ease;
+    border: 2px solid #e5e9f0;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    background-color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.account-card:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(45deg, #1589ee, #00d4ff);
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
 .account-card:hover {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    border-color: #1589ee;
+}
+
+.account-card:hover:before {
+    opacity: 1;
 }
 
 .account-card.selected {
     border-color: #1589ee;
-    box-shadow: 0 0 0 2px rgba(21, 137, 238, 0.1);
+    box-shadow: 0 0 0 3px rgba(21, 137, 238, 0.2);
+    transform: translateY(-2px);
+}
+
+.account-card.selected:before {
+    opacity: 1;
 }
 
 .account-card.slds-is-dragging {
-    opacity: 0.5;
-    transform: rotate(5deg);
+    opacity: 0.7;
+    transform: rotate(3deg) scale(1.05);
+    cursor: grabbing;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
 }
 
 .slds-card__header-title {
@@ -33,10 +64,42 @@
     font-weight: 600;
 }
 
+.account-name-link {
+    color: #1589ee;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    position: relative;
+    padding: 0.25rem 0;
+}
+
+.account-name-link:hover {
+    color: #0d5fab;
+    text-decoration: underline;
+    transform: translateX(2px);
+}
+
+.account-name-link:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(21, 137, 238, 0.4);
+    border-radius: 4px;
+}
+
+.account-name-link:active {
+    transform: translateX(1px);
+}
+
 .slds-text-body_small {
     margin-bottom: 0.25rem;
+    color: #5c6b73;
+    font-size: 0.875rem;
 }
 
 .slds-text-body_small:last-child {
     margin-bottom: 0;
+}
+
+.slds-text-body_small strong {
+    color: #2c3e50;
+    font-weight: 600;
 }
